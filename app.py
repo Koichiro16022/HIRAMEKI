@@ -23,11 +23,13 @@ api_key = st.sidebar.text_input("Google API Keyを入力", type="password")
 
 if api_key:
     try:
+        # APIキーの設定
         genai.configure(api_key=api_key)
         
         uploaded_file = st.file_uploader("手書きのPDFまたは画像をアップロード", type=["pdf", "png", "jpg", "jpeg"])
 
         if uploaded_file:
+            # PDF/画像の読み込み
             if uploaded_file.type == "application/pdf":
                 file_bytes = uploaded_file.read()
                 images = convert_from_bytes(file_bytes)
@@ -39,25 +41,23 @@ if api_key:
 
             if st.button("🚀 閃光解析（OCR実行）"):
                 with st.spinner("慧(Kei)が解析中..."):
-                    # 【禁じ手：404を回避するための「古い形式」での呼び出し】
-                    # もし 'models/gemini-1.5-flash' でダメなら、
-                    # システムが内部で持っている「デフォルト」のルートを強制的に使わせます
-                    try:
-                        model = genai.GenerativeModel('gemini-1.5-flash')
-                        prompt = "画像内の数値を抽出し、表形式で出力してください。"
-                        response = model.generate_content([prompt, image])
-                    except:
-                        # これが最終ライン。あえて古いモデル名を指定して、
-                        # v1betaのパスを通るように仕向けます
-                        model = genai.GenerativeModel('gemini-pro-vision')
-                        response = model.generate_content([prompt, image])
+                    # 【重要】404を回避する最新のモデル指定方法
+                    # 最新のSDK環境では、この記述が最も推奨されます
+                    model = genai.GenerativeModel('gemini-1.5-flash-latest')
+                    
+                    prompt = "この成績書の画像から、製造番号や検査数値、検査者名を抽出し、Markdownの表形式で出力してください。"
+                    
+                    # 生成実行（ストリームなしで確実に取得）
+                    response = model.generate_content(
+                        contents=[prompt, image]
+                    )
                     
                     st.subheader("📊 解析結果")
                     st.markdown(response.text)
                     st.download_button("📥 保存", data=response.text, file_name="result.txt")
                     
     except Exception as e:
-        # エラーが出た場合、その内容をそのまま表示
-        st.error(f"解析中にエラーが発生しました。詳細は以下の通りです：\n{e}")
+        # エラー発生時のデバッグ情報
+        st.error(f"解析中にエラーが発生しました。\n詳細: {e}")
 else:
     st.warning("左のサイドバーにGoogle API Keyを入力してください。")
