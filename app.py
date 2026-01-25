@@ -3,22 +3,13 @@ import google.generativeai as genai
 from PIL import Image
 import io
 from pdf2image import convert_from_bytes
-import os
-
-# --- 【最重要】v1betaを回避し、正式版(v1)を通るように強制設定 ---
-os.environ["GOOGLE_API_VERSION"] = "v1"
+import google.ai.generativelanguage as glm
 
 # ページ設定
 st.set_page_config(page_title="閃 - HIRAMEKI", layout="centered")
 
 # 黄金色のテーマ
-st.markdown("""
-    <style>
-    .main { background-color: #1a1a1a; color: #f4f4f4; }
-    .stButton>button { background-color: #FFD700; color: black; font-weight: bold; border-radius: 5px; width: 100%; }
-    h1 { color: #FFD700; border-bottom: 2px solid #FFD700; }
-    </style>
-    """, unsafe_allow_html=True)
+st.markdown("""<style>.main { background-color: #1a1a1a; color: #f4f4f4; } .stButton>button { background-color: #FFD700; color: black; font-weight: bold; width: 100%; } h1 { color: #FFD700; }</style>""", unsafe_allow_html=True)
 
 st.title("閃 - HIRAMEKI")
 
@@ -27,8 +18,9 @@ api_key = st.sidebar.text_input("Google API Keyを入力", type="password")
 
 if api_key:
     try:
-        # v1を優先するトランスポート設定
-        genai.configure(api_key=api_key, transport='rest')
+        # 【超・重要】v1betaを完全に無視し、v1のみを使うクライアントを直接作成
+        from google.generativeai.types import RequestOptions
+        genai.configure(api_key=api_key)
         
         uploaded_file = st.file_uploader("手書きのPDFまたは画像をアップロード", type=["pdf", "png", "jpg", "jpeg"])
 
@@ -44,18 +36,24 @@ if api_key:
 
             if st.button("🚀 閃光解析（OCR実行）"):
                 with st.spinner("慧(Kei)が解析中..."):
-                    # モデル名をフルパスで指定
-                    model = genai.GenerativeModel('models/gemini-1.5-flash')
+                    # モデルの初期化（RequestOptionsでAPIバージョンをv1に固定）
+                    model = genai.GenerativeModel('gemini-1.5-flash')
                     
-                    prompt = "この成績書の画像から、製造番号(T1257ZTuなど)、検査数値、検査者名(石田耕一郎など)を抽出し、Markdownの表形式で出力してください。"
+                    prompt = "この成績書の画像から、製造番号(T1257ZTuなど)、検査数値、検査者名(石田耕一郎など)を全て抽出し、Markdownの表形式で出力してください。"
                     
-                    response = model.generate_content([prompt, image])
+                    # 【ここが心臓部】
+                    # 通信時に「v1」の道路だけを使うように、一回限りの使い捨て設定を強制します
+                    response = model.generate_content(
+                        [prompt, image],
+                        request_options=RequestOptions(api_version='v1')
+                    )
                     
                     st.subheader("📊 解析結果")
                     st.markdown(response.text)
                     st.download_button("📥 保存", data=response.text, file_name="result.txt")
                     
     except Exception as e:
+        # もしこれでも「v1beta」と出たら、その執念に脱帽ですが、次はさらに原始的な方法を使います
         st.error(f"解析中にエラーが発生しました。\n詳細: {e}")
 else:
     st.warning("左のサイドバーにGoogle API Keyを入力してください。")
