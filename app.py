@@ -5,22 +5,28 @@ import io
 from pdf2image import convert_from_bytes
 import os
 
-# ページ設定
-st.set_page_config(page_title="閃 - HIRAMEKI", layout="centered")
+# --- ページ設定 ---
+st.set_page_config(page_title="SOU - HIRAMEKI", layout="centered")
 
 # 黄金色のテーマ
-st.markdown("""<style>.main { background-color: #1a1a1a; color: #f4f4f4; } .stButton>button { background-color: #FFD700; color: black; font-weight: bold; width: 100%; } h1 { color: #FFD700; }</style>""", unsafe_allow_html=True)
+st.markdown("""
+    <style>
+    .main { background-color: #1a1a1a; color: #f4f4f4; }
+    .stButton>button { background-color: #FFD700; color: black; font-weight: bold; border-radius: 5px; width: 100%; }
+    h1 { color: #FFD700; border-bottom: 2px solid #FFD700; }
+    </style>
+    """, unsafe_allow_html=True)
 
-st.title("閃 - HIRAMEKI")
+st.title("SOU - HIRAMEKI")
 
+# --- サイドバー設定 ---
 st.sidebar.title("設定")
 api_key = st.sidebar.text_input("Google API Keyを入力", type="password")
 
 if api_key:
     try:
-        # 【強制リセット】古い通信設定を物理的に消し去り、正式なv1に固定
-        os.environ["GOOGLE_API_VERSION"] = "v1"
-        genai.configure(api_key=api_key)
+        # 【重要】通信をREST形式に強制し、v1betaを回避します
+        genai.configure(api_key=api_key, transport='rest')
         
         uploaded_file = st.file_uploader("手書きのPDFまたは画像をアップロード", type=["pdf", "png", "jpg", "jpeg"])
 
@@ -36,13 +42,17 @@ if api_key:
 
             if st.button("🚀 閃光解析（OCR実行）"):
                 with st.spinner("慧(Kei)が解析中..."):
-                    # モデル名をあえてフルパスで書かず、SDKに任せます
-                    model = genai.GenerativeModel('gemini-1.5-flash')
+                    # 【重要】不具合の出にくい最新のモデル名をフルパスで指定
+                    model = genai.GenerativeModel('models/gemini-1.5-flash-latest')
                     
-                    prompt = "この成績書の画像から、製造番号(T1257ZTuなど)、検査数値、検査者名(石田耕一郎など)を全て抽出し、Markdownの表形式で出力してください。"
+                    prompt = """
+                    この成績書の画像から以下の情報を抽出し、Markdownの表形式で出力してください。
+                    1. 製造番号 (例: T1257ZTu)
+                    2. 各項目の検査数値
+                    3. 検査者名 (例: 石田耕一郎)
+                    """
                     
-                    # 最もシンプルな呼び出しに戻しつつ、内部で「v1」へ強制転換
-                    # もしこれでもダメなら、SDKのバグそのものです
+                    # 生成実行
                     response = model.generate_content([prompt, image])
                     
                     st.subheader("📊 解析結果")
@@ -50,7 +60,9 @@ if api_key:
                     st.download_button("📥 保存", data=response.text, file_name="result.txt")
                     
     except Exception as e:
-        # エラー発生時の表示
+        # 404が出た場合に、より分かりやすいヒントを表示します
+        if "404" in str(e):
+            st.error("Googleのサーバーが古い窓口(v1beta)を案内しています。このエラーが出る場合は、新しいAPIキーを再度作成するか、しばらく時間をおいて試してください。")
         st.error(f"解析中にエラーが発生しました。\n詳細: {e}")
 else:
     st.warning("左のサイドバーにGoogle API Keyを入力してください。")
