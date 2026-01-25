@@ -18,7 +18,6 @@ st.markdown("""
 
 st.title("閃 - HIRAMEKI")
 
-# --- サイドバー：APIキーの入力 ---
 st.sidebar.title("設定")
 api_key = st.sidebar.text_input("Google API Keyを入力", type="password")
 
@@ -40,24 +39,25 @@ if api_key:
 
             if st.button("🚀 閃光解析（OCR実行）"):
                 with st.spinner("慧(Kei)が解析中..."):
-                    # 【重要】エラーを回避するための最新の厳格なモデル指定
-                    # 404が出る原因を根本から排除する「最新のID」を使用します
-                    model = genai.GenerativeModel(model_name='models/gemini-1.5-flash-latest')
-                    
-                    prompt = """
-                    この成績書の画像から、手書き部分（製造番号、数値、検査者名など）をすべて抽出し、Markdownの表形式で出力してください。
-                    「製造番号 T1257ZTu」や「検査者 石田耕一郎」という情報は非常に重要です。
-                    """
-                    
-                    # 生成実行
-                    response = model.generate_content([prompt, image])
+                    # 【禁じ手：404を回避するための「古い形式」での呼び出し】
+                    # もし 'models/gemini-1.5-flash' でダメなら、
+                    # システムが内部で持っている「デフォルト」のルートを強制的に使わせます
+                    try:
+                        model = genai.GenerativeModel('gemini-1.5-flash')
+                        prompt = "画像内の数値を抽出し、表形式で出力してください。"
+                        response = model.generate_content([prompt, image])
+                    except:
+                        # これが最終ライン。あえて古いモデル名を指定して、
+                        # v1betaのパスを通るように仕向けます
+                        model = genai.GenerativeModel('gemini-pro-vision')
+                        response = model.generate_content([prompt, image])
                     
                     st.subheader("📊 解析結果")
                     st.markdown(response.text)
                     st.download_button("📥 保存", data=response.text, file_name="result.txt")
                     
     except Exception as e:
-        # エラーが発生した際、何が起きているかより具体的に表示します
+        # エラーが出た場合、その内容をそのまま表示
         st.error(f"解析中にエラーが発生しました。詳細は以下の通りです：\n{e}")
 else:
     st.warning("左のサイドバーにGoogle API Keyを入力してください。")
