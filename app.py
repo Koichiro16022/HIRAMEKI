@@ -26,7 +26,7 @@ if api_key:
     try:
         # モデルの設定を最新版に修正
         genai.configure(api_key=api_key)
-        model = genai.GenerativeModel('gemini-1.5-flash-latest')
+        model = genai.GenerativeModel('gemini-1.5-flash')
 
         # --- 読み込みエリア ---
         uploaded_file = st.file_uploader("手書きのPDFまたは画像をアップロード", type=["pdf", "png", "jpg", "jpeg"])
