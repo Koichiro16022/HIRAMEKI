@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>閃 - Hirameki | StoneField SOU Brand</title>
+    <style>
+        :root {
+            --brand-yellow: #FFD700; /* 白金・黄金 */
+            --brand-dark: #1a1a1a;
+            --text-light: #f4f4f4;
+        }
+        body {
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            background-color: var(--brand-dark);
+            color: var(--text-light);
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+        header {
+            padding: 20px;
+            border-bottom: 2px solid var(--brand-yellow);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .logo {
+            font-size: 24px;
+            font-weight: bold;
+            letter-spacing: 2px;
+        }
+        .main-container {
+            display: flex;
+            flex: 1;
+            padding: 20px;
+            gap: 20px;
+        }
+        .drop-zone {
+            flex: 1;
+            border: 2px dashed var(--brand-yellow);
+            border-radius: 10px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            transition: 0.3s;
+            background: rgba(255, 215, 0, 0.05);
+        }
+        .drop-zone:hover {
+            background: rgba(255, 215, 0, 0.1);
+        }
+        .result-zone {
+            flex: 1;
+            background: #2a2a2a;
+            border-radius: 10px;
+            padding: 20px;
+            overflow-y: auto;
+        }
+        .btn-flash {
+            background-color: var(--brand-yellow);
+            color: black;
+            border: none;
+            padding: 15px 30px;
+            font-weight: bold;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 20px;
+            box-shadow: 0 0 15px rgba(255, 215, 0, 0.5);
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            border: 1px solid #444;
+            padding: 10px;
+            text-align: left;
+        }
+        th {
+            background-color: #333;
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <div class="logo">閃 <span style="font-size: 14px; font-weight: normal;">- HIRAMEKI -</span></div>
+    <div class="status">K.Ishida Project / Partner: 慧 (Kei)</div>
+</header>
+
+<div class="main-container">
+    <div class="drop-zone" id="dropZone">
+        <p>成績書（PDF/画像）をドラッグ＆ドロップ</p>
+        <input type="file" id="fileInput" style="display: none;">
+        <button class="btn-flash" onclick="document.getElementById('fileInput').click()">ファイルを選択</button>
+    </div>
+
+    <div class="result-zone" id="resultZone">
+        <h3>解析結果 (Excel出力イメージ)</h3>
+        <p style="color: #888;">ファイルを読み取るとここにデータが表示されます...</p>
+        <div id="outputData"></div>
+    </div>
+</div>
+
+<script>
+    // ここに「慧」が解析ロジックを組み込んでいきます
+    const dropZone = document.getElementById('dropZone');
+    
+    dropZone.ondragover = () => { dropZone.style.borderColor = '#fff'; return false; };
+    dropZone.ondragleave = () => { dropZone.style.borderColor = '#FFD700'; return false; };
+    dropZone.ondrop = (e) => {
+        e.preventDefault();
+        dropZone.style.borderColor = '#FFD700';
+        alert('ファイルを検知しました。解析を開始します（慧：解析準備完了）');
+    };
+</script>
+
+</body>
+</html>
