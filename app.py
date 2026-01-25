@@ -18,7 +18,8 @@ api_key = st.sidebar.text_input("Google API Keyを入力", type="password")
 if api_key:
     try:
         genai.configure(api_key=api_key)
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        # 'models/' を頭に付け、最新の識別子に変更します
+model = genai.GenerativeModel('models/gemini-1.5-flash-latest')
 
         uploaded_file = st.file_uploader("手書きのPDFまたは画像をアップロード", type=["pdf", "png", "jpg", "jpeg"])
 
