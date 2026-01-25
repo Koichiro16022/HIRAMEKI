@@ -42,9 +42,10 @@ if api_key:
 
             if st.button("🚀 閃光解析（OCR実行）"):
                 with st.spinner("慧(Kei)が解析中..."):
-                    # 【重要】404エラー(v1beta)を回避するための厳格なモデル指定
-                    # 名前を直接書くのではなく、内部的なフルパスで指定します
-                    model = genai.GenerativeModel(model_name='models/gemini-1.5-flash')
+                    # エラー回避のため、最も安定している画像解析モデル名を直接指定します
+model = genai.GenerativeModel('gemini-1.5-flash') 
+# ↑ここをもしダメなら以下に変えてみてください
+# model = genai.GenerativeModel('gemini-pro-vision')
                     
                     prompt = "この成績書の画像から、製造番号(T1257ZTuなど)や数値を抽出し、Markdownの表形式で出力してください。検査者名（石田耕一郎など）も正確に抽出してください。"
                     
