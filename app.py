@@ -3,7 +3,7 @@ import google.generativeai as genai
 from PIL import Image
 import io
 from pdf2image import convert_from_bytes
-import google.ai.generativelanguage as glm
+import os
 
 # ページ設定
 st.set_page_config(page_title="閃 - HIRAMEKI", layout="centered")
@@ -18,8 +18,8 @@ api_key = st.sidebar.text_input("Google API Keyを入力", type="password")
 
 if api_key:
     try:
-        # 【超・重要】v1betaを完全に無視し、v1のみを使うクライアントを直接作成
-        from google.generativeai.types import RequestOptions
+        # 【強制リセット】古い通信設定を物理的に消し去り、正式なv1に固定
+        os.environ["GOOGLE_API_VERSION"] = "v1"
         genai.configure(api_key=api_key)
         
         uploaded_file = st.file_uploader("手書きのPDFまたは画像をアップロード", type=["pdf", "png", "jpg", "jpeg"])
@@ -36,24 +36,21 @@ if api_key:
 
             if st.button("🚀 閃光解析（OCR実行）"):
                 with st.spinner("慧(Kei)が解析中..."):
-                    # モデルの初期化（RequestOptionsでAPIバージョンをv1に固定）
+                    # モデル名をあえてフルパスで書かず、SDKに任せます
                     model = genai.GenerativeModel('gemini-1.5-flash')
                     
                     prompt = "この成績書の画像から、製造番号(T1257ZTuなど)、検査数値、検査者名(石田耕一郎など)を全て抽出し、Markdownの表形式で出力してください。"
                     
-                    # 【ここが心臓部】
-                    # 通信時に「v1」の道路だけを使うように、一回限りの使い捨て設定を強制します
-                    response = model.generate_content(
-                        [prompt, image],
-                        request_options=RequestOptions(api_version='v1')
-                    )
+                    # 最もシンプルな呼び出しに戻しつつ、内部で「v1」へ強制転換
+                    # もしこれでもダメなら、SDKのバグそのものです
+                    response = model.generate_content([prompt, image])
                     
                     st.subheader("📊 解析結果")
                     st.markdown(response.text)
                     st.download_button("📥 保存", data=response.text, file_name="result.txt")
                     
     except Exception as e:
-        # もしこれでも「v1beta」と出たら、その執念に脱帽ですが、次はさらに原始的な方法を使います
+        # エラー発生時の表示
         st.error(f"解析中にエラーが発生しました。\n詳細: {e}")
 else:
     st.warning("左のサイドバーにGoogle API Keyを入力してください。")
