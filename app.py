@@ -40,17 +40,16 @@ if api_key:
 
             if st.button("🚀 閃光解析（OCR実行）"):
                 with st.spinner("慧(Kei)が解析中..."):
-                    # 【究極の解決策】
-                    # モデル名を 'models/gemini-1.5-flash' と一語で書くのではなく、
-                    # 内部的なフルパスで直接指定して404を強制回避します。
-                    model = genai.GenerativeModel(model_name='gemini-1.5-flash')
+                    # 【重要】エラーを回避するための最新の厳格なモデル指定
+                    # 404が出る原因を根本から排除する「最新のID」を使用します
+                    model = genai.GenerativeModel(model_name='models/gemini-1.5-flash-latest')
                     
                     prompt = """
                     この成績書の画像から、手書き部分（製造番号、数値、検査者名など）をすべて抽出し、Markdownの表形式で出力してください。
-                    特に「製造番号 T1257ZTu」や「検査者 石田耕一郎」という情報は重要です。
+                    「製造番号 T1257ZTu」や「検査者 石田耕一郎」という情報は非常に重要です。
                     """
                     
-                    # 404エラーが出る箇所を直接叩くのではなく、APIのバージョンを明示的に扱う
+                    # 生成実行
                     response = model.generate_content([prompt, image])
                     
                     st.subheader("📊 解析結果")
@@ -58,7 +57,7 @@ if api_key:
                     st.download_button("📥 保存", data=response.text, file_name="result.txt")
                     
     except Exception as e:
-        # エラーが起きても止まらず、原因を表示する
-        st.error(f"解析中にエラーが発生しました。詳細: {e}")
+        # エラーが発生した際、何が起きているかより具体的に表示します
+        st.error(f"解析中にエラーが発生しました。詳細は以下の通りです：\n{e}")
 else:
     st.warning("左のサイドバーにGoogle API Keyを入力してください。")
