@@ -45,7 +45,7 @@ if api_key:
                 with st.spinner("慧(Kei)が解析中..."):
                     # モデルの呼び出し方を「確実な方法」に変更
                     # models/ を抜いた名前で試行
-                    model = genai.GenerativeModel('gemini-pro-vision')
+                    model = genai.GenerativeModel('models/gemini-1.5-flash')
                     
                     # プロンプト：手書き文字を認識して表にする
                     prompt = "この成績書の画像から、手書き部分を含む数値をすべて抽出し、Markdownの表形式で出力してください。製造番号や検査者名も正確に抽出してください。"
