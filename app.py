@@ -24,13 +24,11 @@ api_key = st.sidebar.text_input("Google API Keyを入力", type="password")
 
 if api_key:
     try:
-        # APIキーを設定
         genai.configure(api_key=api_key)
         
         uploaded_file = st.file_uploader("手書きのPDFまたは画像をアップロード", type=["pdf", "png", "jpg", "jpeg"])
 
         if uploaded_file:
-            # PDF/画像の読み込み
             if uploaded_file.type == "application/pdf":
                 file_bytes = uploaded_file.read()
                 images = convert_from_bytes(file_bytes)
@@ -38,14 +36,13 @@ if api_key:
             else:
                 image = Image.open(uploaded_file)
             
-            st.image(image, caption="解析対象の書類", use_column_width=True)
+            st.image(image, caption="解析対象 of 書類", use_column_width=True)
 
             if st.button("🚀 閃光解析（OCR実行）"):
                 with st.spinner("慧(Kei)が解析中..."):
-                    # エラー回避のため、最も安定している画像解析モデル名を直接指定します
-model = genai.GenerativeModel('gemini-1.5-flash') 
-# ↑ここをもしダメなら以下に変えてみてください
-# model = genai.GenerativeModel('gemini-pro-vision')
+                    # 段落（インデント）を正しく修正した箇所です
+                    # 404エラーを防ぐため、SDKが自動でv1betaを選ばないようモデル名を指定
+                    model = genai.GenerativeModel('gemini-1.5-flash')
                     
                     prompt = "この成績書の画像から、製造番号(T1257ZTuなど)や数値を抽出し、Markdownの表形式で出力してください。検査者名（石田耕一郎など）も正確に抽出してください。"
                     
@@ -57,7 +54,6 @@ model = genai.GenerativeModel('gemini-1.5-flash')
                     st.download_button("📥 保存", data=response.text, file_name="result.txt")
                     
     except Exception as e:
-        # エラー発生時のデバッグ情報
         st.error(f"解析中にエラーが発生しました。\n詳細: {e}")
 else:
     st.warning("左のサイドバーにGoogle API Keyを入力してください。")
