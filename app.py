@@ -3,9 +3,8 @@ import google.generativeai as genai
 from PIL import Image
 import io
 from pdf2image import convert_from_bytes
-import os
 
-# --- ページ設定 ---
+# ページ設定
 st.set_page_config(page_title="SOU - HIRAMEKI", layout="centered")
 
 # 黄金色のテーマ
@@ -19,14 +18,13 @@ st.markdown("""
 
 st.title("SOU - HIRAMEKI")
 
-# --- サイドバー設定 ---
 st.sidebar.title("設定")
 api_key = st.sidebar.text_input("Google API Keyを入力", type="password")
 
 if api_key:
     try:
-        # 【重要】通信をREST形式に強制し、v1betaを回避します
-        genai.configure(api_key=api_key, transport='rest')
+        # 【最新仕様】APIキーの設定
+        genai.configure(api_key=api_key)
         
         uploaded_file = st.file_uploader("手書きのPDFまたは画像をアップロード", type=["pdf", "png", "jpg", "jpeg"])
 
@@ -42,15 +40,11 @@ if api_key:
 
             if st.button("🚀 閃光解析（OCR実行）"):
                 with st.spinner("慧(Kei)が解析中..."):
-                    # 【重要】不具合の出にくい最新のモデル名をフルパスで指定
-                    model = genai.GenerativeModel('models/gemini-1.5-flash-latest')
+                    # 【重要】最新版ライブラリでのみ有効な、本道を強制する呼び出し
+                    # model_name の前に 'models/' をつけないのが最新の公式ルールです
+                    model = genai.GenerativeModel(model_name='gemini-1.5-flash')
                     
-                    prompt = """
-                    この成績書の画像から以下の情報を抽出し、Markdownの表形式で出力してください。
-                    1. 製造番号 (例: T1257ZTu)
-                    2. 各項目の検査数値
-                    3. 検査者名 (例: 石田耕一郎)
-                    """
+                    prompt = "画像から製造番号(T1257ZTu等)と検査数値を抽出し表にしてください。検査者名(石田耕一郎)も必須です。"
                     
                     # 生成実行
                     response = model.generate_content([prompt, image])
@@ -60,9 +54,6 @@ if api_key:
                     st.download_button("📥 保存", data=response.text, file_name="result.txt")
                     
     except Exception as e:
-        # 404が出た場合に、より分かりやすいヒントを表示します
-        if "404" in str(e):
-            st.error("Googleのサーバーが古い窓口(v1beta)を案内しています。このエラーが出る場合は、新しいAPIキーを再度作成するか、しばらく時間をおいて試してください。")
         st.error(f"解析中にエラーが発生しました。\n詳細: {e}")
 else:
     st.warning("左のサイドバーにGoogle API Keyを入力してください。")
