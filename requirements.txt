@@ -1,2 +1,3 @@
 google-generativeai
 Pillow
+pdf2image
