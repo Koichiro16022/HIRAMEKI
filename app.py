@@ -41,22 +41,21 @@ if api_key:
 
             if st.button("🚀 閃光解析（OCR実行）"):
                 with st.spinner("慧(Kei)が解析中..."):
-                    # --- エラー回避用の二段構えモデル選択 ---
-                    try:
-                        # 第一候補: 最新の正式名称
-                        model = genai.GenerativeModel('gemini-1.5-flash')
-                        prompt = "この成績書の画像から数値を抽出し、Markdownの表形式で出力してください。"
-                        response = model.generate_content([prompt, image])
-                    except Exception:
-                        # 第二候補: 404が出た場合の代替指定法
-                        model = genai.GenerativeModel('models/gemini-1.5-flash')
-                        response = model.generate_content([prompt, image])
+                    # 【重要】ここを強制書き換えします
+                    # v1betaというパスを直接指定することで、404エラーを回避します
+                    model = genai.GenerativeModel('models/gemini-1.5-flash')
+                    
+                    prompt = "この成績書の画像から、手書き部分（製造番号、数値、検査者名など）をすべて抽出し、Markdownの表形式で出力してください。"
+                    
+                    # 生成実行
+                    response = model.generate_content([prompt, image])
                     
                     st.subheader("📊 解析結果")
                     st.markdown(response.text)
                     st.download_button("📥 保存", data=response.text, file_name="result.txt")
                     
     except Exception as e:
-        st.error(f"解析中にエラーが発生しました: {e}")
+        # 最終手段：もしこれでもダメな場合、エラー内容をより詳細に出す
+        st.error(f"解析中にエラーが発生しました。申し訳ありませんが、もう一度だけ以下を確認してください。\n詳細: {e}")
 else:
     st.warning("左のサイドバーにGoogle API Keyを入力してください。")
