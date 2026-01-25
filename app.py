@@ -18,12 +18,13 @@ st.markdown("""
 
 st.title("閃 - HIRAMEKI")
 
+# --- サイドバー：APIキーの入力 ---
 st.sidebar.title("設定")
 api_key = st.sidebar.text_input("Google API Keyを入力", type="password")
 
 if api_key:
     try:
-        # APIキーの設定
+        # APIキーを設定
         genai.configure(api_key=api_key)
         
         uploaded_file = st.file_uploader("手書きのPDFまたは画像をアップロード", type=["pdf", "png", "jpg", "jpeg"])
@@ -41,16 +42,14 @@ if api_key:
 
             if st.button("🚀 閃光解析（OCR実行）"):
                 with st.spinner("慧(Kei)が解析中..."):
-                    # 【重要】404を回避する最新のモデル指定方法
-                    # 最新のSDK環境では、この記述が最も推奨されます
-                    model = genai.GenerativeModel('gemini-1.5-flash-latest')
+                    # 【重要】404エラー(v1beta)を回避するための厳格なモデル指定
+                    # 名前を直接書くのではなく、内部的なフルパスで指定します
+                    model = genai.GenerativeModel(model_name='models/gemini-1.5-flash')
                     
-                    prompt = "この成績書の画像から、製造番号や検査数値、検査者名を抽出し、Markdownの表形式で出力してください。"
+                    prompt = "この成績書の画像から、製造番号(T1257ZTuなど)や数値を抽出し、Markdownの表形式で出力してください。検査者名（石田耕一郎など）も正確に抽出してください。"
                     
-                    # 生成実行（ストリームなしで確実に取得）
-                    response = model.generate_content(
-                        contents=[prompt, image]
-                    )
+                    # 生成実行
+                    response = model.generate_content([prompt, image])
                     
                     st.subheader("📊 解析結果")
                     st.markdown(response.text)
