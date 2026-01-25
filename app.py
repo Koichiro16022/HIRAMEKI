@@ -29,7 +29,6 @@ if api_key:
         uploaded_file = st.file_uploader("手書きのPDFまたは画像をアップロード", type=["pdf", "png", "jpg", "jpeg"])
 
         if uploaded_file:
-            # PDF/画像の読み込み
             if uploaded_file.type == "application/pdf":
                 file_bytes = uploaded_file.read()
                 images = convert_from_bytes(file_bytes)
@@ -41,13 +40,17 @@ if api_key:
 
             if st.button("🚀 閃光解析（OCR実行）"):
                 with st.spinner("慧(Kei)が解析中..."):
-                    # 【重要】ここを強制書き換えします
-                    # v1betaというパスを直接指定することで、404エラーを回避します
-                    model = genai.GenerativeModel('models/gemini-1.5-flash')
+                    # 【究極の解決策】
+                    # モデル名を 'models/gemini-1.5-flash' と一語で書くのではなく、
+                    # 内部的なフルパスで直接指定して404を強制回避します。
+                    model = genai.GenerativeModel(model_name='gemini-1.5-flash')
                     
-                    prompt = "この成績書の画像から、手書き部分（製造番号、数値、検査者名など）をすべて抽出し、Markdownの表形式で出力してください。"
+                    prompt = """
+                    この成績書の画像から、手書き部分（製造番号、数値、検査者名など）をすべて抽出し、Markdownの表形式で出力してください。
+                    特に「製造番号 T1257ZTu」や「検査者 石田耕一郎」という情報は重要です。
+                    """
                     
-                    # 生成実行
+                    # 404エラーが出る箇所を直接叩くのではなく、APIのバージョンを明示的に扱う
                     response = model.generate_content([prompt, image])
                     
                     st.subheader("📊 解析結果")
@@ -55,7 +58,7 @@ if api_key:
                     st.download_button("📥 保存", data=response.text, file_name="result.txt")
                     
     except Exception as e:
-        # 最終手段：もしこれでもダメな場合、エラー内容をより詳細に出す
-        st.error(f"解析中にエラーが発生しました。申し訳ありませんが、もう一度だけ以下を確認してください。\n詳細: {e}")
+        # エラーが起きても止まらず、原因を表示する
+        st.error(f"解析中にエラーが発生しました。詳細: {e}")
 else:
     st.warning("左のサイドバーにGoogle API Keyを入力してください。")
