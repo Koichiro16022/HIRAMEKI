@@ -1,33 +1,34 @@
 import streamlit as st
 import google.generativeai as genai
 from PIL import Image
+import time
 
-st.title("閃 (HIRAMEKI) - 2.0世代接続テスト")
+st.title("閃 (HIRAMEKI) - 疎通確認(2.0-001版)")
 
 api_key = st.sidebar.text_input("API Key", type="password")
 uploaded_file = st.file_uploader("画像をアップロード", type=["png", "jpg", "jpeg", "pdf"])
 
 if api_key and uploaded_file:
-    # 設定
     genai.configure(api_key=api_key)
     
-    # 【変更点】リストの4番目にあった正確な名称 'models/gemini-2.0-flash' を指定
-    # models/ を含めることで、ライブラリの自動推測を抑制します
-    model = genai.GenerativeModel('models/gemini-2.0-flash')
+    # リスト5番の特定バージョンを指定。混雑回避を狙います。
+    model = genai.GenerativeModel('models/gemini-2.0-flash-001')
 
-    if st.button("🚀 2.0世代で解析実行"):
+    if st.button("🚀 解析実行（1分待機後に推奨）"):
         try:
             image = Image.open(uploaded_file)
             st.image(image, caption="解析対象", width=300)
             
-            with st.spinner("最新の閃（2.0）が通信中..."):
+            with st.spinner("2.0-001の列に並んでいます..."):
                 response = model.generate_content(
-                    ["画像内の表から文字を読み取ってください", image]
+                    ["画像内のテキストをすべて抽出してください", image]
                 )
                 
-                st.success("ついに呪いが解けました！2.0世代で接続成功です。")
+                st.success("接続成功！呪いも混雑も突破しました。")
+                st.write("--- 解析結果 ---")
                 st.write(response.text)
 
         except Exception as e:
             st.error(f"エラー発生: {e}")
-            st.info("このエラーが出る場合、モデル名を 'gemini-2.0-flash-001' (リスト5番) に微調整します。")
+            if "429" in str(e):
+                st.warning("まだ列が混んでいます。あと1分待ってから再試行してください。")
