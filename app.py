@@ -10,7 +10,7 @@ api_key = st.sidebar.text_input("新しいGoogle API Keyを入力", type="passwo
 
 if api_key:
     try:
-        # 最新版(0.8.3)はこれで自動的に v1 に繋がります
+        # 最新版(0.8.3)はこれで自動的に v1 に繋がります 
         genai.configure(api_key=api_key)
         uploaded_file = st.file_uploader("画像をアップロード(JPG/PNG)", type=["png", "jpg", "jpeg"])
 
