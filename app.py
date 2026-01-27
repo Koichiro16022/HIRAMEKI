@@ -2,37 +2,32 @@ import streamlit as st
 import google.generativeai as genai
 from PIL import Image
 
-st.title("閃 (HIRAMEKI) - 疎通確認(v1強制)")
+st.title("閃 (HIRAMEKI) - 疎通確認(2026最新版)")
 
 api_key = st.sidebar.text_input("API Key", type="password")
 uploaded_file = st.file_uploader("画像をアップロード", type=["png", "jpg", "jpeg", "pdf"])
 
 if api_key and uploaded_file:
-    # 1. 安定版を明示的に設定
     genai.configure(api_key=api_key)
     
-    # 2. ここが重要：'v1beta'を避けるためにモデル名を直接指定
-    # 'models/gemini-1.5-flash' ではなく 'gemini-1.5-flash' とし、
-    # 内部的にv1を使用するよう促します
-    model = genai.GenerativeModel('gemini-1.5-flash')
+    # リストにある最新モデル「gemini-2.0-flash」を明示的に指定
+    # これにより v1beta の呪いを回避し、最新世代で実行します
+    model = genai.GenerativeModel('gemini-2.0-flash')
 
-    if st.button("🚀 疎通テスト実行"):
+    if st.button("🚀 閃光解析・起動"):
         try:
             image = Image.open(uploaded_file)
             st.image(image, caption="解析対象", width=300)
             
-            with st.spinner("通信中..."):
-                # 3. 実行時に明示的に「v1」をリクエストする場合の書き方（必要に応じて）
+            with st.spinner("最新世代の『閃』が思考中..."):
                 response = model.generate_content(
                     ["画像の内容をテキスト化してください", image]
                 )
                 
-                st.success("通信成功！")
+                st.success("呪い解除成功！最新世代で接続しました。")
+                st.write("--- 解析結果 ---")
                 st.write(response.text)
 
         except Exception as e:
-            # 4. エラーが出た場合、利用可能なモデル一覧を画面に出して原因を特定する
             st.error(f"エラー発生: {e}")
-            st.info("利用可能なモデルを確認中...")
-            models = [m.name for m in genai.list_models()]
-            st.write("あなたが今使えるモデル一覧:", models)
+            st.info("もしこれでもダメな場合は、'gemini-flash-latest' を試します。")
