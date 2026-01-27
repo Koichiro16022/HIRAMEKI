@@ -2,27 +2,29 @@ import streamlit as st
 import google.generativeai as genai
 from PIL import Image
 
-st.set_page_config(page_title="閃 - HIRAMEKI")
-st.title("閃 - HIRAMEKI")
+st.title("閃 (HIRAMEKI) - 疎通確認")
 
-st.sidebar.title("設定")
-api_key = st.sidebar.text_input("新しいGoogle API Keyを入力", type="password")
+# 1. 最小限の入力
+api_key = st.sidebar.text_input("API Key", type="password")
+uploaded_file = st.file_uploader("画像をアップロード", type=["png", "jpg", "jpeg", "pdf"])
 
-if api_key:
-    try:
-        # 最新版(0.8.3)はこれで自動的に v1 に繋がります 
-        genai.configure(api_key=api_key)
-        uploaded_file = st.file_uploader("画像をアップロード(JPG/PNG)", type=["png", "jpg", "jpeg"])
+if api_key and uploaded_file:
+    # 2. 安定版(v1)の設定
+    genai.configure(api_key=api_key)
+    model = genai.GenerativeModel('gemini-1.5-flash')
 
-        if uploaded_file:
+    if st.button("🚀 疎通テスト実行"):
+        try:
             image = Image.open(uploaded_file)
-            st.image(image, caption="解析対象", use_column_width=True)
+            st.image(image, caption="解析対象", width=300)
+            
+            with st.spinner("通信中..."):
+                # 3. 最小限のプロンプト
+                response = model.generate_content(["画像の内容を簡潔にテキスト化してください", image])
+                
+                # 4. 結果表示（これが出れば呪い解除成功！）
+                st.success("通信成功！")
+                st.write(response.text)
 
-            if st.button("🚀 閃光解析"):
-                with st.spinner("解析中..."):
-                    model = genai.GenerativeModel('gemini-1.5-flash')
-                    response = model.generate_content(["画像から製造番号、数値を抽出し表にしてください。検査者(石田耕一郎)も必須です。", image])
-                    st.markdown(response.text)
-                    
-    except Exception as e:
-        st.error(f"詳細: {e}")
+        except Exception as e:
+            st.error(f"エラー発生: {e}")
