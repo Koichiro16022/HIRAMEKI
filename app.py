@@ -8,26 +8,23 @@ import re
 # --- 1. ブランド・定数設定 ---
 BRAND_NAME = "EKAI" 
 PROJECT_NAME = "閃 (HIRAMEKI)"
-TOTAL_WORK_TIME = "4.5時間 + バグ取り（2026/01/28 19:00〜）"
+TOTAL_WORK_TIME = "4.5時間 + バグ取り（2026/01/28 19:19時点）"
 
 st.set_page_config(page_title=f"{PROJECT_NAME}", layout="wide")
 
 st.markdown("""
     <style>
-    .warning-box { border: 2px solid red; padding: 15px; border-radius: 10px; background-color: #fff0f0; margin-bottom: 15px; }
-    .normal-box { border: 1px solid #ddd; padding: 15px; border-radius: 10px; background-color: #444; color: white; margin-bottom: 15px; }
+    .warning-box { border: 2px solid red; padding: 15px; border-radius: 10px; background-color: #fff0f0; margin-bottom: 15px; color: black; }
+    .normal-box { border: 1px solid #ddd; padding: 15px; border-radius: 10px; background-color: #f0f2f6; margin-bottom: 15px; color: black; }
     </style>
     """, unsafe_allow_html=True)
 
-st.title(f"{PROJECT_NAME} - 検査成績書 判定システム")
+st.title(f"{PROJECT_NAME} - 判定精度向上版")
 
-# --- 3. サイドバー設定 ---
 api_key = st.sidebar.text_input("Google API Key", type="password")
-st.sidebar.markdown("---")
 st.sidebar.write(f"作業累計: **{TOTAL_WORK_TIME}**")
 st.sidebar.info("「私が100%制御しています」")
 
-# --- 4. メイン処理 ---
 uploaded_file = st.file_uploader("PDFまたは画像をアップロード", type=["png", "jpg", "jpeg", "pdf"])
 
 if api_key and uploaded_file:
@@ -47,15 +44,17 @@ if api_key and uploaded_file:
             for page_idx, img in enumerate(images):
                 st.image(img, caption=f"解析対象 ({page_idx+1}ページ目)", use_container_width=True)
                 
-                with st.spinner(f"ページ {page_idx+1} を精密判定中..."):
-                    # プロンプトをより厳格に
+                with st.spinner(f"ページ {page_idx+1} を「石田様」の視点で解析中..."):
+                    # 指示をさらに具体化（署名の広域検知）
                     prompt = """
-                    検査成績書の表を解析し、以下のJSON形式リストのみで返してください。
+                    検査成績書を解析し、以下のJSONリスト形式で返してください。
                     [
-                      {"項目": "項目名", "自主": "合格か良か不合格", "社内": "✓かJかVか空欄", "署名": true/false}
+                      {"項目": "A", "自主": "合格", "社内": "✓", "署名": true}
                     ]
-                    ※「自主検査結果」の数値が許容値内なら「合格」、外れていれば「不合格」と判定してください。
-                    ※「社内検査」欄に少しでもチェック（✓, J, V）があれば必ず抽出してください。
+                    【判定ルール】
+                    1. 自主：数値が許容値内なら「合格」、外なら「不合格」。
+                    2. 社内：欄内に「✓」「J」「V」や、手書きのチェック、何らかの記号があれば抽出。
+                    3. 署名：ページ内の「検査者」や「確認」欄に名前（例：石田）があれば、全項目一律で true にしてください。
                     """
                     response = model.generate_content([prompt, img])
                     
@@ -66,8 +65,9 @@ if api_key and uploaded_file:
                         st.subheader(f"【第 {page_idx+1} ページ 判定結果】")
 
                         for item_idx, item in enumerate(parsed_items):
-                            # 判定ルール：自主が不合格、または署名なし、または社内空欄なら赤枠
-                            is_warning = (item["自主"] == "不合格") or (not item["署名"])
+                            # 自主が不合格、または署名がない、または社内が空欄なら赤枠
+                            # ※ここでは「社内検査が空欄」なだけでも赤枠（警告）を出す仕様にします
+                            is_warning = (item["自主"] == "不合格") or (not item["署名"]) or (not item["社内"] or item["社内"] == "（空欄）")
                             box_style = "warning-box" if is_warning else "normal-box"
 
                             st.markdown(f"""
@@ -78,13 +78,13 @@ if api_key and uploaded_file:
                                 </div>
                             """, unsafe_allow_html=True)
 
-                            # 確定ロジック：自主が合格/良 かつ 社内にチェックがあれば転記を問う
-                            if item["自主"] in ["合格", "良"] and item["社内"] in ["✓", "J", "V"]:
+                            # 転記ボタン：自主合格 かつ 社内チェックあり
+                            if item["自主"] in ["合格", "良"] and item["社内"] in ["✓", "J", "V", "チェックあり"]:
                                 st.info(f"💡 自主検査の『{item['自主']}』を転記しますか？")
                                 if st.button(f"承認: {item['項目']}", key=f"btn_{page_idx}_{item_idx}"):
                                     st.success(f"{item['項目']} を転記しました。")
                     else:
-                        st.write(response.text)
+                        st.write("解析に失敗しました。原文：", response.text)
 
         except Exception as e:
-            st.error(f"解析エラー: {e}")
+            st.error(f"エラー: {e}")
