@@ -8,7 +8,7 @@ import re
 # --- 1. ブランド・定数設定 ---
 BRAND_NAME = "EKAI" 
 PROJECT_NAME = "閃 (HIRAMEKI)"
-TOTAL_WORK_TIME = "4.5時間 + バグ取り（2026/01/28 19:25）"
+TOTAL_WORK_TIME = "4.5時間 + バグ取り（2026/01/28 19:30）"
 
 st.set_page_config(page_title=f"{PROJECT_NAME}", layout="wide")
 
@@ -19,7 +19,7 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-st.title(f"{PROJECT_NAME} - 視覚認識強化版")
+st.title(f"{PROJECT_NAME} - 論理確定版")
 
 api_key = st.sidebar.text_input("Google API Key", type="password")
 st.sidebar.write(f"作業累計: **{TOTAL_WORK_TIME}**")
@@ -37,27 +37,23 @@ if api_key and uploaded_file:
             if uploaded_file.type == "application/pdf":
                 pdf = pdfium.PdfDocument(uploaded_file)
                 for page in pdf:
-                    # scale=3 に上げ、より微細なチェックマークを拾いやすくする
-                    bitmap = page.render(scale=3)
-                    images.append(bitmap.to_pil())
+                    images.append(page.render(scale=3).to_pil())
             else:
                 images.append(Image.open(uploaded_file))
 
             for page_idx, img in enumerate(images):
                 st.image(img, caption=f"解析対象 ({page_idx+1}ページ目)", use_container_width=True)
                 
-                with st.spinner(f"ページ {page_idx+1} の微細なチェックをスキャン中..."):
-                    # 指示をさらに鋭く（社内検査の記号に特化）
+                with st.spinner(f"ページ {page_idx+1} の論理を確定中..."):
                     prompt = """
-                    この検査成績書の表を、虫眼鏡で見るように精密に解析し、必ず以下のJSON形式リストのみで返してください。
+                    検査成績書を解析し、以下のJSONリスト形式で返してください。
                     [
                       {"項目": "A", "自主": "合格", "社内": "✓", "署名": true}
                     ]
-                    【重要ルール】
-                    1. 「社内検査」欄を凝視してください。単なるハイフン「ー」なのか、手書きの「✓」「J」「V」「L」などのチェック記号なのかを厳密に区別してください。
-                    2. 記号があればその文字を、なければ「空欄」としてください。
-                    3. 数値（自主検査結果）と許容値を比較し、範囲内なら「合格」、外なら「不合格」と判定。
-                    4. ページ内に石田様の署名があれば全項目 署名: true としてください。
+                    【判定の黄金律】
+                    1. 自主：数値が許容値外なら、容赦なく「不合格」と書くこと。
+                    2. 社内：手書きの「✓」「J」「V」があればその文字を、無ければ必ず「なし」と書くこと。
+                    3. 署名：ページ内に石田様の氏名があれば全項目 true。
                     """
                     response = model.generate_content([prompt, img])
                     
@@ -68,8 +64,9 @@ if api_key and uploaded_file:
                         st.subheader(f"【第 {page_idx+1} ページ 判定結果】")
 
                         for item_idx, item in enumerate(parsed_items):
-                            # 自主不合格、または署名なし、または社内空欄なら赤枠
-                            is_warning = (item["自主"] == "不合格") or (not item["署名"]) or (not item["社内"] or item["社内"] in ["", "―", "ー", "（空欄）"])
+                            # 社内検査が「なし」の場合は赤枠にする
+                            has_check = item["社内"] not in ["なし", "空欄", "ー", "―", ""]
+                            is_warning = (item["自主"] == "不合格") or (not item["署名"]) or (not has_check)
                             box_style = "warning-box" if is_warning else "normal-box"
 
                             st.markdown(f"""
@@ -80,11 +77,10 @@ if api_key and uploaded_file:
                                 </div>
                             """, unsafe_allow_html=True)
 
-                            # 転記ボタン：自主合格 かつ 社内チェックが「ー」以外の場合
-                            has_check = item["社内"] not in ["", "―", "ー", "（空欄）"]
+                            # 確定ロジック：自主が「合格/良」かつ「社内チェックが実在する」場合のみボタン
                             if item["自主"] in ["合格", "良"] and has_check:
                                 st.info(f"💡 自主検査の『{item['自主']}』を転記しますか？")
-                                if st.button(f"承認: {item['項目']}", key=f"btn_{page_idx}_{item_idx}"):
+                                if st.button(f"承認して転記: {item['項目']}", key=f"btn_{page_idx}_{item_idx}"):
                                     st.success(f"{item['項目']} を転記しました。")
                     else:
                         st.write("解析原文：", response.text)
