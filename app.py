@@ -2,17 +2,17 @@ import streamlit as st
 import google.generativeai as genai
 from PIL import Image
 import pypdfium2 as pdfium
-import io
+import json
+import re
 
 # --- 1. ブランド・定数設定 ---
 BRAND_NAME = "EKAI" 
 PROJECT_NAME = "閃 (HIRAMEKI)"
-TOTAL_WORK_TIME = "4.5時間（疎通・PDF対応含む）"
+TOTAL_WORK_TIME = "4.5時間 + バグ取り（19:00開始）"
 
 # --- 2. ページ構成 ---
 st.set_page_config(page_title=f"{PROJECT_NAME} by {BRAND_NAME}", layout="wide")
 
-# 赤枠警告用のスタイル定義
 st.markdown("""
     <style>
     .warning-box { border: 2px solid red; padding: 15px; border-radius: 10px; background-color: #fff0f0; margin-bottom: 15px; }
@@ -34,13 +34,11 @@ uploaded_file = st.file_uploader("検査成績書（PDFまたは画像）をア�
 
 if api_key and uploaded_file:
     genai.configure(api_key=api_key)
-    # 2.0世代の安定版 Lite モデルを使用
     model = genai.GenerativeModel('models/gemini-flash-lite-latest')
 
     if st.button("🚀 閃光解析を実行"):
         try:
             images = []
-            # PDFファイルを画像に変換
             if uploaded_file.type == "application/pdf":
                 with st.spinner("PDFを解析用に最適化中..."):
                     pdf = pdfium.PdfDocument(uploaded_file)
@@ -50,54 +48,51 @@ if api_key and uploaded_file:
             else:
                 images.append(Image.open(uploaded_file))
 
-            # 各ページに対して解析を実行
             for page_idx, img in enumerate(images):
                 st.image(img, caption=f"解析対象 ({page_idx+1}ページ目)", use_container_width=True)
                 
                 with st.spinner(f"ページ {page_idx+1} を『絵かい』の論理で解析中..."):
-                    # 現場の判定ルールをプロンプトとして注入
+                    # プロンプトをJSON出力に固定するよう強化
                     prompt = """
-                    検査成績書の表を解析してください。
-                    1. 各項目の「自主検査」が「合格」または「良」か？
-                    2. 「社内検査」に「✓」「J」「V」等のチェックがあるか？
-                    3. 「検査者署名」が空欄ではないか？
-                    上記を読み取って、JSON形式に近いリスト形式で詳細を答えてください。
+                    検査成績書の表を解析し、必ず以下のJSON形式のみで返答してください。
+                    [
+                      {"項目": "項目名", "自主": "合格または良または空欄", "社内": "✓またはJまたはVまたは空欄", "署名": true/false}
+                    ]
+                    ※署名は「検査者署名欄」に名前が書いてあればtrue、空欄や「ー」ならfalseとしてください。
                     """
                     response = model.generate_content([prompt, img])
-                    analysis_result = response.text
+                    
+                    # JSON部分だけを抽出する処理
+                    json_match = re.search(r'\[.*\]', response.text, re.DOTALL)
+                    
+                    if json_match:
+                        parsed_items = json.loads(json_match.group())
+                        
+                        st.subheader(f"【第 {page_idx+1} ページ 判定結果】")
 
-                    st.subheader(f"【第 {page_idx+1} ページ 判定結果】")
+                        for item_idx, item in enumerate(parsed_items):
+                            # --- 慧の確定ロジック ---
+                            # 署名がfalse、または自主/社内が空欄なら赤枠
+                            is_warning = (not item["署名"]) or (not item["自主"] and not item["社内"])
+                            box_style = "warning-box" if is_warning else "normal-box"
 
-                    # --- 確定ロジック（検証用の動的生成） ---
-                    # 💡 バグ取りポイント：ボタンに一意のkey（page_idx と item_idx）を付与
-                    demo_items = [
-                        {"項目": "外観検査", "自主": "合格", "社内": "J", "署名": False},
-                        {"項目": "寸法測定", "自主": "", "社内": "", "署名": False}
-                    ]
+                            st.markdown(f"""
+                                <div class="{box_style}">
+                                    <strong>項目: {item['項目']}</strong><br>
+                                    自主検査: {item['自主'] if item['自主'] else '（未記入）'} / 
+                                    社内検査: {item['社内'] if item['社内'] else '（未記入）'} / 
+                                    署名: {"✅確認済" if item['署名'] else "❌署名漏れ"}
+                                </div>
+                            """, unsafe_allow_html=True)
 
-                    for item_idx, item in enumerate(demo_items):
-                        # 署名漏れ、または自主/社内が空欄なら赤枠（慧の認識の証）
-                        is_warning = (not item["署名"]) or (not item["自主"] and not item["社内"])
-                        box_style = "warning-box" if is_warning else "normal-box"
-
-                        st.markdown(f"""
-                            <div class="{box_style}">
-                                <strong>項目: {item['項目']}</strong><br>
-                                自主検査: {item['自主'] if item['自主'] else '（空欄）'} / 
-                                社内検査: {item['社内'] if item['社内'] else '（空欄）'} / 
-                                署名: {"✅確認済" if item['署名'] else "❌署名漏れ"}
-                            </div>
-                        """, unsafe_allow_html=True)
-
-                        # 「閃」確定転記ロジック：ボタンの重複を回避するユニークなキーを設定
-                        if item["自主"] in ["合格", "良"] and item["社内"]:
-                            st.info(f"💡 自主検査の『{item['自主']}』を転記しますか？")
-                            button_key = f"btn_{page_idx}_{item_idx}"
-                            if st.button(f"エクセルへ転記承認: {item['項目']}", key=button_key):
-                                st.success(f"『{item['項目']}』を転記予約しました。")
-
-                    st.write("--- AI読み取り原文（デバッグ用） ---")
-                    st.code(analysis_result)
+                            # 「閃」確定転記ロジック
+                            if item["自主"] in ["合格", "良"] and item["社内"] in ["✓", "J", "V"]:
+                                st.info(f"💡 自主検査の『{item['自主']}』を転記しますか？")
+                                if st.button(f"エクセルへ転記承認: {item['項目']}", key=f"btn_{page_idx}_{item_idx}"):
+                                    st.success(f"『{item['項目']}』を転記しました。")
+                    else:
+                        st.warning("AIの回答からデータを抽出できませんでした。原文を確認してください。")
+                        st.write(response.text)
 
         except Exception as e:
             st.error(f"解析エラー: {e}")
