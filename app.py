@@ -8,35 +8,25 @@ import re
 # --- 1. ブランド・定数設定 ---
 BRAND_NAME = "EKAI" 
 PROJECT_NAME = "閃 (HIRAMEKI)"
-# 2026/01/29 19:45 呪い封印・安定接続版import streamlit as st
-import google.generativeai as genai
-from PIL import Image
-import pypdfium2 as pdfium
-import json
-import re
-
-# --- 1. ブランド・定数設定 ---
-BRAND_NAME = "EKAI" 
-PROJECT_NAME = "閃 (HIRAMEKI)"
-# 2026/01/29 20:30 接続規格強制アップデート版
-TOTAL_WORK_TIME = "4.5時間 + バグ取り2.5時間（404エラー物理回避版）"
+TOTAL_WORK_TIME = "4.5時間 + バグ取り2.5時間（エラー完全払拭版）"
 
 st.set_page_config(page_title=f"{PROJECT_NAME}", layout="wide")
 
+# スタイル定義：修正済みのクリーンなCSS
 st.markdown("""
-    <style>
-    .warning-box { border: 2px solid red; padding: 15px; border-radius: 10px; background-color: #fff0f0; margin-bottom: 15px; color: black; }
-    .normal-box { border: 1px solid #ddd; padding: 15px; border-radius: 10px; background-color: #f0f8ff; margin-bottom: 15px; color: black; }
-    .stButton>button { width: 100%; border-radius: 5px; }
-    </style>
-    """, unsafe_allow_html=True)
+<style>
+.warning-box { border: 2px solid red; padding: 15px; border-radius: 10px; background-color: #fff0f0; margin-bottom: 15px; color: black; }
+.normal-box { border: 1px solid #ddd; padding: 15px; border-radius: 10px; background-color: #f0f8ff; margin-bottom: 15px; color: black; }
+.stButton>button { width: 100%; border-radius: 5px; }
+</style>
+""", unsafe_allow_html=True)
 
 st.title(f"{PROJECT_NAME} - 現場運用最適化版")
 
 # --- サイドバー ---
 api_key = st.sidebar.text_input("Google API Key", type="password")
 st.sidebar.write(f"作業累計: **{TOTAL_WORK_TIME}**")
-st.sidebar.info("「接続規格を強制的に最新(v1)へ固定しました」")
+st.sidebar.info("「接続規格とコードの構文を徹底浄化しました」")
 
 def clean_num(text):
     if text is None or text == "" or text in ["―", "ー", "none", "None"]: return None
@@ -49,12 +39,9 @@ def clean_num(text):
 uploaded_file = st.file_uploader("PDFまたは画像をアップロード", type=["png", "jpg", "jpeg", "pdf"])
 
 if api_key and uploaded_file:
-    # 接続設定を初期化
     genai.configure(api_key=api_key)
     
-    # --- 【最強の404回避ロジック】 ---
-    # モデル名から 'models/' を抜き、かつ安定している上位モデル 'gemini-1.5-pro' を第一候補にします
-    # これにより、Google SDKが勝手に古いv1betaへ繋ぎにいくのを防ぎます
+    # 404を回避するためのモデル指定
     try:
         model = genai.GenerativeModel('gemini-1.5-pro')
     except:
@@ -77,64 +64,6 @@ if api_key and uploaded_file:
                     prompt = """
                     検査成績書の表からデータを抽出し、JSON形式のリストのみで返してください。
                     [
-                      {"項目": "A", "図面寸法": "350", "許容値": "5", "結果": "350", "社内": "なし
-TOTAL_WORK_TIME = "4.5時間 + バグ取り2時間（接続エラー解消版）"
-
-st.set_page_config(page_title=f"{PROJECT_NAME}", layout="wide")
-
-# スタイル定義：警告（赤枠）と通常（青枠）
-st.markdown("""
-    <style>
-    .warning-box { border: 2px solid red; padding: 15px; border-radius: 10px; background-color: #fff0f0; margin-bottom: 15px; color: black; }
-    .normal-box { border: 1px solid #ddd; padding: 15px; border-radius: 10px; background-color: #f0f8ff; margin-bottom: 15px; color: black; }
-    .stButton>button { width: 100%; border-radius: 5px; }
-    </style>
-    """, unsafe_allow_html=True)
-
-st.title(f"{PROJECT_NAME} - 現場運用最適化版")
-
-# --- サイドバー ---
-api_key = st.sidebar.text_input("Google API Key", type="password")
-st.sidebar.write(f"作業累計: **{TOTAL_WORK_TIME}**")
-st.sidebar.info("「例外パターンもPythonで100%制御しています」")
-
-def clean_num(text):
-    if text is None or text == "" or text in ["―", "ー", "none", "None"]: return None
-    try:
-        cleaned = re.sub(r'[^0-9.\-]', '', str(text))
-        return float(cleaned) if cleaned else None
-    except:
-        return None
-
-uploaded_file = st.file_uploader("PDFまたは画像をアップロード", type=["png", "jpg", "jpeg", "pdf"])
-
-if api_key and uploaded_file:
-    # --- 【重要】接続設定の初期化 ---
-    # 404エラー（v1beta未対応）を避けるため、最もシンプルな初期化を行います
-    genai.configure(api_key=api_key)
-    
-    # モデル名を「プレフィックスなし」にすることで、SDKに最適なエンドポイントを選ばせます
-    # gemini-1.5-flash は現在、最も404が出にくい安定モデルです
-    model = genai.GenerativeModel('gemini-1.5-flash')
-
-    if st.button("🚀 閃光解析を実行"):
-        try:
-            images = []
-            if uploaded_file.type == "application/pdf":
-                pdf = pdfium.PdfDocument(uploaded_file)
-                for page in pdf:
-                    images.append(page.render(scale=3).to_pil())
-            else:
-                images.append(Image.open(uploaded_file))
-
-            for page_idx, img in enumerate(images):
-                st.image(img, caption=f"解析対象 ({page_idx+1}ページ目)", use_container_width=True)
-                
-                with st.spinner(f"ページ {page_idx+1} を精査中..."):
-                    # プロンプト（昨日成功した内容）
-                    prompt = """
-                    検査成績書の表からデータを抽出し、JSON形式のリストのみで返してください。
-                    [
                       {"項目": "A", "図面寸法": "350", "許容値": "5", "結果": "350", "社内": "なし", "署名": true}
                     ]
                     ※許容値が空欄や「ー」なら "None" としてください。
@@ -142,8 +71,6 @@ if api_key and uploaded_file:
                     """
                     
                     response = model.generate_content([prompt, img])
-                    
-                    # 404が出た場合でも、ここでエラーをキャッチして詳細を表示するように強化
                     json_match = re.search(r'\[.*\]', response.text, re.DOTALL)
                     
                     if json_match:
@@ -169,7 +96,9 @@ if api_key and uploaded_file:
                                         is_ok = True
                             
                             has_check = item.get("社内") not in ["なし", "空欄", "ー", "―", "", None]
-                            is_warning = (not is_ok) or (not item.get("署名")) or (not has_check)
+                            has_sign = item.get("署名", False)
+                            
+                            is_warning = (not is_ok) or (not has_sign) or (not has_check)
                             box_style = "warning-box" if is_warning else "normal-box"
 
                             st.markdown(f"""
@@ -178,7 +107,7 @@ if api_key and uploaded_file:
                                     図面基準: {base if base is not None else '---'} (±{tol if tol is not None else '---'})<br>
                                     実測結果: {val if val is not None else '---'}<br>
                                     判定結果: <span style="color:{'green' if is_ok else 'red'}; font-weight:bold;">{judge}</span><br>
-                                    社内検査: {item.get('社内')} / 署名: {"✅確認済" if item.get('署名') else "❌署名漏れ"}
+                                    社内検査: {item.get('社内')} / 署名: {"✅確認済" if has_sign else "❌署名漏れ"}
                                 </div>
                             """, unsafe_allow_html=True)
 
@@ -188,14 +117,9 @@ if api_key and uploaded_file:
                                     st.success(f"{item['項目']} を転記しました。")
                     else:
                         st.error("⚠️ 解析に失敗しました。")
-                        st.warning("書類の形式が読み取れないか、AIの応答が正しくありません。")
-                        with st.expander("詳細な応答内容"):
-                            st.write(response.text)
 
         except Exception as e:
-            # 404エラーが出た際に、具体的にどの部分で落ちたかを表示
-            st.error(f"システムエラー（接続失敗）: {e}")
-            st.info("もし404が消えない場合は、API Studioで新しいAPIキーを発行して試してください。")
+            st.error(f"システムエラー: {e}")
 
 else:
     st.info("APIキーを入力し、ファイルをアップロードしてください。")
