@@ -9,7 +9,7 @@ import io
 
 # --- 1. ブランド・定数設定 ---
 PROJECT_NAME = "閃 (HIRAMEKI)"
-TOTAL_WORK_TIME = "4.5時間 + バグ取り4時間（REST API直結版）"
+TOTAL_WORK_TIME = "4.5時間 + バグ取り4.5時間（REST API 最終調整版）"
 
 st.set_page_config(page_title=f"{PROJECT_NAME}", layout="wide")
 
@@ -48,13 +48,14 @@ if api_key and uploaded_file:
                 st.image(img, caption=f"解析対象 ({page_idx+1}ページ目)", use_container_width=True)
                 
                 with st.spinner(f"ページ {page_idx+1} を精査中..."):
-                    # 画像をBase64に変換
                     buffered = io.BytesIO()
                     img.save(buffered, format="JPEG")
                     img_base64 = base64.b64encode(buffered.getvalue()).decode('utf-8')
 
-                    # --- 【ここが肝】ライブラリを通さず、最新(v1)のAPIへ直接リクエストを送る ---
-                    url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={api_key}"
+                    # --- 【ここが運命の分かれ道】 ---
+                    # v1beta ですが、ライブラリを通さない「直接リクエスト」なので
+                    # 先ほどのようなライブラリ側の勝手な404エラーを回避できます
+                    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
                     
                     payload = {
                         "contents": [{
@@ -69,6 +70,7 @@ if api_key and uploaded_file:
                     res_json = response.json()
 
                     if response.status_code == 200:
+                        # 成功時の処理
                         res_text = res_json['candidates'][0]['content']['parts'][0]['text']
                         json_match = re.search(r'\[.*\]', res_text, re.DOTALL)
                         
@@ -76,23 +78,31 @@ if api_key and uploaded_file:
                             raw_data = json.loads(json_match.group())
                             st.subheader(f"【第 {page_idx+1} ページ 判定結果】")
                             for item in raw_data:
+                                # 元のロジックを復元
                                 base = clean_num(item.get("図面寸法"))
                                 tol = clean_num(item.get("許容値"))
                                 val = clean_num(item.get("結果"))
-                                judge = "合格" if (base and val and (base-tol if tol else base) <= val <= (base+tol if tol else base)) else "不合格"
-                                is_ok = (judge == "合格")
+                                
+                                # 判定ロジック
+                                is_ok = False
+                                if base is not None and val is not None:
+                                    diff = abs(base - val)
+                                    is_ok = diff <= (tol if tol else 0)
+                                
                                 has_check = item.get("社内") not in ["なし", "空欄", "ー", "―", "", None]
                                 has_sign = item.get("署名", False)
                                 box_style = "normal-box" if (is_ok and has_check and has_sign) else "warning-box"
                                 
                                 st.markdown(f"""<div class="{box_style}">
                                     <strong>項目: {item['項目']}</strong><br>
-                                    実測結果: {val} / 判定: {judge}<br>
+                                    図面基準: {base} (±{tol}) / 実測: {val}<br>
+                                    判定: {"合格" if is_ok else "不合格"}<br>
                                     社内検査: {item.get('社内')} / 署名: {"✅確認済" if has_sign else "❌署名漏れ"}
                                     </div>""", unsafe_allow_html=True)
                         else:
-                            st.error("JSON解析エラー")
+                            st.error("データの抽出に失敗しました。")
                     else:
-                        st.error(f"APIエラー: {res_json}")
+                        # ここで再度 404 が出た場合、モデル名を gemini-1.5-flash-latest に変えるだけで済みます
+                        st.error(f"APIエラー: {res_json.get('error', {}).get('message', '不明なエラー')}")
         except Exception as e:
             st.error(f"システムエラー: {e}")
