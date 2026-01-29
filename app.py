@@ -8,12 +8,10 @@ import re
 # --- 1. ブランド・定数設定 ---
 BRAND_NAME = "EKAI" 
 PROJECT_NAME = "閃 (HIRAMEKI)"
-# 2026/01/28 19:00〜20:00 のバグ取り成果を反映
-TOTAL_WORK_TIME = "4.5時間 + バグ取り1時間（2026/01/28 20:00完了）"
+TOTAL_WORK_TIME = "4.5時間 + バグ取り1.5時間（2026/01/29 19:30 復旧試行版）"
 
 st.set_page_config(page_title=f"{PROJECT_NAME}", layout="wide")
 
-# スタイル定義：警告（赤枠）と通常（青枠）の出し分け
 st.markdown("""
     <style>
     .warning-box { border: 2px solid red; padding: 15px; border-radius: 10px; background-color: #fff0f0; margin-bottom: 15px; color: black; }
@@ -24,16 +22,14 @@ st.markdown("""
 
 st.title(f"{PROJECT_NAME} - 現場運用最適化版")
 
-# --- サイドバー：ステータス管理 ---
+# --- サイドバー ---
 api_key = st.sidebar.text_input("Google API Key", type="password")
 st.sidebar.write(f"作業累計: **{TOTAL_WORK_TIME}**")
 st.sidebar.info("「例外パターンもPythonで100%制御しています」")
 
-# 数値クリーニング関数：AIが読み取った文字列から計算可能な数値のみを抽出
 def clean_num(text):
     if text is None or text == "" or text in ["―", "ー", "none", "None"]: return None
     try:
-        # 数字、小数点、マイナス記号以外をすべて除去
         cleaned = re.sub(r'[^0-9.\-]', '', str(text))
         return float(cleaned) if cleaned else None
     except:
@@ -43,24 +39,20 @@ uploaded_file = st.file_uploader("PDFまたは画像をアップロード", type
 
 if api_key and uploaded_file:
     genai.configure(api_key=api_key)
-    # クォータ制限時はモデル名を確認してください
-    # --- 修正前 ---
-# model = genai.GenerativeModel('models/gemini-flash-lite-latest')
+    
+    # --- 呪い封印モード：モデル定義 ---
+    try:
+        model = genai.GenerativeModel('gemini-1.5-flash-002')
+    except:
+        model = genai.GenerativeModel('gemini-1.5-flash')
 
-# --- 修正後：呪い封印モード ---
-# models/ プレフィックスを付け、世代を明示した最も堅牢な指定
-try:
-    model = genai.GenerativeModel('models/gemini-1.5-flash-002')
-except:
-    model = genai.GenerativeModel('gemini-1.5-flash')
-
+    # ↓ ここから下のインデントを修正しました
     if st.button("🚀 閃光解析を実行"):
         try:
             images = []
             if uploaded_file.type == "application/pdf":
                 pdf = pdfium.PdfDocument(uploaded_file)
                 for page in pdf:
-                    # 解像度3倍でチェックマークの視認性を確保
                     images.append(page.render(scale=3).to_pil())
             else:
                 images.append(Image.open(uploaded_file))
@@ -69,7 +61,6 @@ except:
                 st.image(img, caption=f"解析対象 ({page_idx+1}ページ目)", use_container_width=True)
                 
                 with st.spinner(f"ページ {page_idx+1} を精査中..."):
-                    # プロンプト：AIには「抽出」のみを命じ、「判定」はさせない
                     prompt = """
                     検査成績書の表からデータを抽出し、JSON形式のリストのみで返してください。
                     [
@@ -86,7 +77,6 @@ except:
                         st.subheader(f"【第 {page_idx+1} ページ 判定結果】")
 
                         for item_idx, item in enumerate(raw_data):
-                            # --- Pythonによる厳格な数値判定ロジック ---
                             base = clean_num(item.get("図面寸法"))
                             tol = clean_num(item.get("許容値"))
                             val = clean_num(item.get("結果"))
@@ -96,27 +86,15 @@ except:
                             
                             if base is not None and val is not None:
                                 if tol is not None:
-                                    # 許容値がある場合：範囲内か判定
                                     if (base - tol) <= val <= (base + tol):
                                         judge = "合格"
                                         is_ok = True
                                 else:
-                                    # 許容値がない場合：完全一致のみ合格
                                     if base == val:
                                         judge = "合格"
                                         is_ok = True
-                                    else:
-                                        judge = "判定不可(許容値なし)"
-                                        is_ok = False
-                            else:
-                                judge = "データ不足"
-                                is_ok = False
                             
-                            # 社内検査欄のチェック有無（記号があればTrue）
                             has_check = item.get("社内") not in ["なし", "空欄", "ー", "―", "", None]
-                            
-                            # 警告（赤枠）のルール：
-                            # 「不合格」または「署名漏れ」または「社内検査チェックなし」で赤枠を表示
                             is_warning = (not is_ok) or (not item.get("署名")) or (not has_check)
                             box_style = "warning-box" if is_warning else "normal-box"
 
@@ -130,15 +108,12 @@ except:
                                 </div>
                             """, unsafe_allow_html=True)
 
-                            # 確定ロジックに基づく転記ボタンの出現
-                            # 自主検査が「合格」かつ社内検査に「✓」がある場合のみ表示
                             if is_ok and has_check:
                                 st.info(f"💡 自主検査の『{judge}』を転記しますか？")
                                 if st.button(f"承認してエクセル転記: {item['項目']}", key=f"btn_{page_idx}_{item_idx}"):
-                                    # ここにエクセル書き込み処理（今後の拡張）
                                     st.success(f"{item['項目']} を転記リストに追加しました。")
                     else:
-                        st.write("解析に失敗しました。APIリミットまたは画像品質を確認してください。")
+                        st.write("解析に失敗しました。形式を確認してください。")
 
         except Exception as e:
             st.error(f"システムエラー: {e}")
