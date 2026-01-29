@@ -44,7 +44,7 @@ uploaded_file = st.file_uploader("PDFまたは画像をアップロード", type
 if api_key and uploaded_file:
     genai.configure(api_key=api_key)
     # 制限がかかりにくい標準的なFlashモデルを使用
-    model = genai.GenerativeModel('gemini-1.5-flash')
+    model = genai.GenerativeModel('gemini-1.5-flash-latest')
 
     if st.button("🚀 閃光解析を実行"):
         try:
