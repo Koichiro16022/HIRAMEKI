@@ -44,6 +44,14 @@ uploaded_file = st.file_uploader("PDFまたは画像をアップロード", type
 if api_key and uploaded_file:
     genai.configure(api_key=api_key)
     # クォータ制限時はモデル名を確認してください
+    # --- 修正前 ---
+# model = genai.GenerativeModel('models/gemini-flash-lite-latest')
+
+# --- 修正後：呪い封印モード ---
+# models/ プレフィックスを付け、世代を明示した最も堅牢な指定
+try:
+    model = genai.GenerativeModel('models/gemini-1.5-flash-002')
+except:
     model = genai.GenerativeModel('gemini-1.5-flash')
 
     if st.button("🚀 閃光解析を実行"):
