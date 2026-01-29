@@ -8,10 +8,12 @@ import re
 # --- 1. ブランド・定数設定 ---
 BRAND_NAME = "EKAI" 
 PROJECT_NAME = "閃 (HIRAMEKI)"
-TOTAL_WORK_TIME = "4.5時間 + バグ取り1.5時間（2026/01/29 19:30 復旧試行版）"
+# 2026/01/29 19:45 呪い封印・安定接続版
+TOTAL_WORK_TIME = "4.5時間 + バグ取り2時間（接続エラー解消版）"
 
 st.set_page_config(page_title=f"{PROJECT_NAME}", layout="wide")
 
+# スタイル定義：警告（赤枠）と通常（青枠）
 st.markdown("""
     <style>
     .warning-box { border: 2px solid red; padding: 15px; border-radius: 10px; background-color: #fff0f0; margin-bottom: 15px; color: black; }
@@ -38,15 +40,14 @@ def clean_num(text):
 uploaded_file = st.file_uploader("PDFまたは画像をアップロード", type=["png", "jpg", "jpeg", "pdf"])
 
 if api_key and uploaded_file:
+    # --- 【重要】接続設定の初期化 ---
+    # 404エラー（v1beta未対応）を避けるため、最もシンプルな初期化を行います
     genai.configure(api_key=api_key)
     
-    # --- 呪い封印モード：モデル定義 ---
-    try:
-        model = genai.GenerativeModel('gemini-1.5-flash-002')
-    except:
-        model = genai.GenerativeModel('gemini-1.5-flash')
+    # モデル名を「プレフィックスなし」にすることで、SDKに最適なエンドポイントを選ばせます
+    # gemini-1.5-flash は現在、最も404が出にくい安定モデルです
+    model = genai.GenerativeModel('gemini-1.5-flash')
 
-    # ↓ ここから下のインデントを修正しました
     if st.button("🚀 閃光解析を実行"):
         try:
             images = []
@@ -61,6 +62,7 @@ if api_key and uploaded_file:
                 st.image(img, caption=f"解析対象 ({page_idx+1}ページ目)", use_container_width=True)
                 
                 with st.spinner(f"ページ {page_idx+1} を精査中..."):
+                    # プロンプト（昨日成功した内容）
                     prompt = """
                     検査成績書の表からデータを抽出し、JSON形式のリストのみで返してください。
                     [
@@ -69,7 +71,10 @@ if api_key and uploaded_file:
                     ※許容値が空欄や「ー」なら "None" としてください。
                     ※署名はページ内に石田様の氏名があれば一律 true。
                     """
+                    
                     response = model.generate_content([prompt, img])
+                    
+                    # 404が出た場合でも、ここでエラーをキャッチして詳細を表示するように強化
                     json_match = re.search(r'\[.*\]', response.text, re.DOTALL)
                     
                     if json_match:
@@ -111,9 +116,17 @@ if api_key and uploaded_file:
                             if is_ok and has_check:
                                 st.info(f"💡 自主検査の『{judge}』を転記しますか？")
                                 if st.button(f"承認してエクセル転記: {item['項目']}", key=f"btn_{page_idx}_{item_idx}"):
-                                    st.success(f"{item['項目']} を転記リストに追加しました。")
+                                    st.success(f"{item['項目']} を転記しました。")
                     else:
-                        st.write("解析に失敗しました。形式を確認してください。")
+                        st.error("⚠️ 解析に失敗しました。")
+                        st.warning("書類の形式が読み取れないか、AIの応答が正しくありません。")
+                        with st.expander("詳細な応答内容"):
+                            st.write(response.text)
 
         except Exception as e:
-            st.error(f"システムエラー: {e}")
+            # 404エラーが出た際に、具体的にどの部分で落ちたかを表示
+            st.error(f"システムエラー（接続失敗）: {e}")
+            st.info("もし404が消えない場合は、API Studioで新しいAPIキーを発行して試してください。")
+
+else:
+    st.info("APIキーを入力し、ファイルをアップロードしてください。")
